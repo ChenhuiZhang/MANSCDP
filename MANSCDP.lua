@@ -30,6 +30,60 @@ do
     return str
   end
 
+  function num_to_bits(num)
+    local table = {}
+    local index = 1
+
+    num = tonumber(num)
+
+    while (num > 0) do
+      local last_bit = math.mod(num, 2)
+      if last_bit == 1 then
+        table[index] = 1
+      else
+        table[index] = 0
+      end
+
+      num = (num - last_bit)/2
+      index = index + 1
+    end
+
+    return table
+  end
+
+  function ptz_display(cmd)
+    local bittable = num_to_bits(cmd:sub(7,8))
+
+    local display = "PTZ: "
+    -- pan/tilt speed is stroed in the byte 5/6, 00 ~ FF
+    local pan_speed = tonumber(cmd:sub(9,10), 16)
+    local tilt_speed = tonumber(cmd:sub(11,12), 16)
+    -- zoom speed is stored in the high 4 bit, 0 ~ F
+    local zoom_speed = tonumber(cmd:sub(13,14), 16)/16
+
+    if bittable[1] == 1 then display = display .. "Right(" .. pan_speed .. ")" end
+    if bittable[2] == 1 then display = display .. "Left(" .. pan_speed .. ")" end
+    if bittable[3] == 1 then display = display .. "Down(" .. tilt_speed .. ")" end
+    if bittable[4] == 1 then display = display .. "Up(" .. tilt_speed .. ")" end
+    if bittable[5] == 1 then display = display .. "Zoom In(" .. zoom_speed .. ")" end
+    if bittable[6] == 1 then display = display .. "Zoom Out(" .. zoom_speed .. ")" end
+
+    -- No ptz command found, stop all
+    if display:len() == 5 then display = display .. "Stop" end
+
+    return display
+  end
+
+  function handle_DeviceControl(xml, pinfo)
+    print(xml)
+
+    local ptz = xml:match("<PTZCmd>(.*)</PTZCmd>")
+
+    if ptz then
+      pinfo.cols.info:append(" " .. ptz_display(ptz))
+    end
+  end
+
   function manscdp_protocol.dissector(tvb, pinfo, tree)
     local method = sip_method()
 
@@ -55,27 +109,28 @@ do
 
       local buf = hex_to_string(xml_body:range(0, xml_body:len()):bytes())
 
-      --local b = ByteArray.new(tostring(xml_body))
-
       print(buf)
 
-      --print(tostring(ByteArray.tvb(b, "")))
-      --print(xml_body)
-      
-      --local cmd = "<CmdType>Keepalive</CmdType>"
-
+      --[[
       if string.match(buf, "<CmdType>.*</CmdType>") then
         print(buf:match("<CmdType>(.*)</CmdType>"))
       end
+      ]]--
 
       local cmd = buf:match("<CmdType>(.*)</CmdType>")
 
-      --if xml_body.find(cmd:bytes()) then
-       -- print "Keepalive"
-      --end
-
       subtree:add(cmd_field, cmd)
       pinfo.cols.info:append(" " .. cmd)
+
+      if cmd == "Keepalive" then
+      elseif cmd == "Catalog" then
+      elseif cmd == "DeviceControl" then
+          handle_DeviceControl(buf, pinfo)
+      elseif cmd == "Alarm" then
+      elseif cmd == "DeviceInfo" then
+      else
+      end
+
     end
 
     --pinfo.cols['info'] = 'MANSCDP'
