@@ -19,22 +19,17 @@ do
     print(byte_array:len())
 
     for i=0,byte_array:len()-1 do
-      --print(i)
-      --print(string.sub(tostring(byte_array), i*2+1, i*2+2))
-      --print(tonumber(string.sub(tostring(byte_array), i*2+1, i*2+2), 16))
-      --print(string.char(tonumber(string.sub(tostring(byte_array), i*2+1, i*2+2), 16)))
       str = str .. string.char(tonumber(string.sub(tostring(byte_array), i*2+1, i*2+2), 16))
     end
 
-    --print(str)
     return str
   end
 
   function num_to_bits(num)
-    local table = {}
+    local table = {0,0,0,0,0,0,0,0}
     local index = 1
 
-    num = tonumber(num)
+    num = tonumber(num, 16)
 
     while (num > 0) do
       local last_bit = math.mod(num, 2)
@@ -51,7 +46,59 @@ do
     return table
   end
 
+  function ptz_scan_display(cmd)
+    local command_type = tonumber(cmd:sub(7,8), 16)
+
+    if command_type == 0x89 then
+        local scan = tonumber(cmd:sub(11,12), 16)
+        if scan == 0x00 then
+            return "START SCAN"
+        elseif scan == 0x01 then
+            return "SCAN LEFT"
+        elseif scan == 0x02 then
+            return "SCAN RIGHT"
+        else
+            return "Unknow scan command"
+        end
+    else
+        local speed = tonumber(cmd:sub(11,12), 16) + tonumber(cmd:sub(13,14), 16) * 0xFF
+        return "SCAN SPEED(" .. speed .. ")"
+    end
+  end
+
+  function ptz_fi_display(cmd)
+      return ""
+  end
+
+  function ptz_preset_display(cmd)
+      return ""
+  end
+
+  function ptz_tour_display(cmd)
+      return ""
+  end
+
   function ptz_display(cmd)
+    -- the fouth byte is the command
+    local bittable = num_to_bits(cmd:sub(7,8))
+    local command_type = tonumber(cmd:sub(7,8), 16)
+
+    if command_type == 0x00 then
+        return ptz_move_display(cmd)
+    elseif command_type == 0x01 then
+        return ptz_fi_display(cmd)
+    elseif command_type >= 0x81 and command_type <= 0x83 then
+        return ptz_preset_display(cmd)
+    elseif command_type >= 0x84 and command_type <= 0x88 then
+        return ptz_tour_display(cmd)
+    elseif command_type >= 0x89 and command_type <= 0x8A then
+        return ptz_scan_display(cmd)
+    else
+        return "Unkonw ptz command"
+    end
+  end
+
+  function ptz_move_display(cmd)
     local bittable = num_to_bits(cmd:sub(7,8))
 
     local display = "PTZ: "
@@ -75,12 +122,20 @@ do
   end
 
   function handle_DeviceControl(xml, pinfo)
-    print(xml)
-
     local ptz = xml:match("<PTZCmd>(.*)</PTZCmd>")
+    local boot = xml:match("<TeleBoot>Boot</TeleBoot>")
+    local record = xml:match("<RecordCmd>(.*)</RecordCmd>")
 
     if ptz then
       pinfo.cols.info:append(" " .. ptz_display(ptz))
+    end
+
+    if boot then
+      pinfo.cols.info:append(" " .. "Boot")
+    end
+
+    if record then
+      pinfo.cols.info:append(" " .. record)
     end
   end
 
@@ -93,11 +148,7 @@ do
 
       local raw = tostring(tvb:range(0, tvb:len()):bytes())
 
-      print(raw)
-
       local i, j = string.find(raw, "0D0A0D0A")
-
-      print(i, j)
 
       local subtree = tree:add(manscdp_protocol, tvb:range(j/2))
       
@@ -108,14 +159,6 @@ do
       xml_dissector:call(xml_body, pinfo, subtree)
 
       local buf = hex_to_string(xml_body:range(0, xml_body:len()):bytes())
-
-      print(buf)
-
-      --[[
-      if string.match(buf, "<CmdType>.*</CmdType>") then
-        print(buf:match("<CmdType>(.*)</CmdType>"))
-      end
-      ]]--
 
       local cmd = buf:match("<CmdType>(.*)</CmdType>")
 
