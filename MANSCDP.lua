@@ -83,11 +83,39 @@ do
   end
 
   function ptz_preset_display(cmd)
-      return ""
+    local command_type = tonumber(cmd:sub(7,8), 16)
+    local preset_index = tonumber(cmd:sub(11,12), 16)
+
+    if command_type == 0x81 then return "Preset Set(" .. preset_index .. ")" end
+    if command_type == 0x82 then return "Preset Goto(" .. preset_index .. ")" end
+    if command_type == 0x83 then return "Preset Del(" .. preset_index .. ")" end
+
+    return "Unkonw preset command"
   end
 
   function ptz_tour_display(cmd)
-      return ""
+    local command_type = tonumber(cmd:sub(7,8), 16)
+    local tour_index = tonumber(cmd:sub(9,10), 16)
+
+    if command_type == 0x84 then
+        local preset_index = tonumber(cmd:sub(11,12), 16)
+        return "Tour(" .. tour_index ") Add Preset(" .. preset_index ")"
+    elseif command_type == 0x85 then
+        local preset_index = tonumber(cmd:sub(11,12), 16)
+        return "Tour(" .. tour_index ") Remove Preset(" .. preset_index ")"
+    elseif command_type == 0x86 then
+        -- The high 4 bytes of the 7th Byte + the 8 bytes of the 6th Byte
+        local tour_speed = tonumber(cmd:sub(13,14), 16)/0x0F * 0xFF + tonumber(cmd:sub(11,12), 16)
+        return "Tour(" .. tour_index ") Set Speed(" .. tour_speed ")"
+    elseif command_type == 0x87 then
+        -- seconds
+        local stop_time = tonumber(cmd:sub(13,14), 16)/0x0F * 0xFF + tonumber(cmd:sub(11,12), 16)
+        return "Tour(" .. tour_index ") Set Stop Time(" .. stop_time ")"
+    elseif command_type == 0x88 then
+        return "Tour(" .. tour_index ") Start"
+    else
+        return "Unknow Tour command"
+    end
   end
 
   function ptz_move_display(cmd)
