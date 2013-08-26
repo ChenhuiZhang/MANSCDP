@@ -67,7 +67,19 @@ do
   end
 
   function ptz_fi_display(cmd)
-      return ""
+    local display = ""
+    local bittable = num_to_bits(cmd:sub(7,8))
+    local focus_speed = tonumber(cmd:sub(9,10), 16)
+    local iris_speed = tonumber(cmd:sub(11,12), 16)
+
+    if bittable[1] == 1 then display = display .. "Focus Far(" .. focus_speed .. ")" end
+    if bittable[2] == 1 then display = display .. "Focus Near(" .. focus_speed .. ")" end
+    if bittable[3] == 1 then display = display .. "Iris Open(" .. iris_speed .. ")" end
+    if bittable[4] == 1 then display = display .. "Iris Close(" .. iris_speed .. ")" end
+
+    if display:len() == 0 then display = "Focus/Iris Stop" end
+
+    return display
   end
 
   function ptz_preset_display(cmd)
@@ -76,26 +88,6 @@ do
 
   function ptz_tour_display(cmd)
       return ""
-  end
-
-  function ptz_display(cmd)
-    -- the fouth byte is the command
-    local bittable = num_to_bits(cmd:sub(7,8))
-    local command_type = tonumber(cmd:sub(7,8), 16)
-
-    if command_type == 0x00 then
-        return ptz_move_display(cmd)
-    elseif command_type == 0x01 then
-        return ptz_fi_display(cmd)
-    elseif command_type >= 0x81 and command_type <= 0x83 then
-        return ptz_preset_display(cmd)
-    elseif command_type >= 0x84 and command_type <= 0x88 then
-        return ptz_tour_display(cmd)
-    elseif command_type >= 0x89 and command_type <= 0x8A then
-        return ptz_scan_display(cmd)
-    else
-        return "Unkonw ptz command"
-    end
   end
 
   function ptz_move_display(cmd)
@@ -119,6 +111,26 @@ do
     if display:len() == 5 then display = display .. "Stop" end
 
     return display
+  end
+
+  function ptz_display(cmd)
+    -- the fouth byte is the command
+    local bittable = num_to_bits(cmd:sub(7,8))
+    local command_type = tonumber(cmd:sub(7,8), 16)
+
+    if bittable[8] == 0 and bittable[7] == 0 then
+        return ptz_move_display(cmd)
+    elseif bittable[8] == 0 and bittable[7] == 1 then
+        return ptz_fi_display(cmd)
+    elseif command_type >= 0x81 and command_type <= 0x83 then
+        return ptz_preset_display(cmd)
+    elseif command_type >= 0x84 and command_type <= 0x88 then
+        return ptz_tour_display(cmd)
+    elseif command_type >= 0x89 and command_type <= 0x8A then
+        return ptz_scan_display(cmd)
+    else
+        return "Unkonw ptz command"
+    end
   end
 
   function handle_DeviceControl(xml, pinfo)
