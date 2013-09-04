@@ -132,8 +132,8 @@ do
     if bittable[2] == 1 then display = display .. "Left(" .. pan_speed .. ")" end
     if bittable[3] == 1 then display = display .. "Down(" .. tilt_speed .. ")" end
     if bittable[4] == 1 then display = display .. "Up(" .. tilt_speed .. ")" end
-    if bittable[5] == 1 then display = display .. "Zoom In(" .. zoom_speed .. ")" end
-    if bittable[6] == 1 then display = display .. "Zoom Out(" .. zoom_speed .. ")" end
+    if bittable[5] == 1 then display = display .. "Zoom Out(" .. zoom_speed .. ")" end
+    if bittable[6] == 1 then display = display .. "Zoom In(" .. zoom_speed .. ")" end
 
     -- No ptz command found, stop all
     if display:len() == 5 then display = display .. "Stop" end
